@@ -1,0 +1,13 @@
+{
+    "hostname": "Router-Sucursal-01",
+    "fqdn": "Router-Sucursal-01.local",
+    "vendor": "Cisco",
+    "model": "1941",
+    "serial_number": "FTX12345678",
+    "os_version": "12.4(24)T",
+    "uptime": 300,
+    "interface_list": [
+        "GigabitEthernet0/0",
+        "GigabitEthernet0/1"
+    ]
+}
