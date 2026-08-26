@@ -33,6 +33,12 @@ app = FastAPI(
 # de facts) se mantiene identico para no tener que tocar evaluador.py.
 RUTA_MOCK = Path(__file__).parent / "mock_facts.json"
 
+class CredencialesDispositivo(BaseModel):
+    """Contrato de los datos que el Frontend debe enviar para auditar un equipo."""
+    ip: str
+    usuario: str
+    password: str
+    driver_name: str = "ios"  # Valor por defecto para equipos Cisco
 
 class ResultadoCheck(BaseModel):
     """Contrato de un check individual, para que Frontend sepa que esperar."""
@@ -63,14 +69,11 @@ def estado_motor():
 
 
 @app.post("/api/auditar", response_model=ResultadoAuditoria)
-def auditar_dispositivo():
+def auditar_dispositivo(credenciales: CredencialesDispositivo):
     """
-    Ejecuta una auditoria sobre datos mock (Fase 1).
-
-    En Fase 2, este endpoint recibira una IP/credenciales en el body
-    (un request model nuevo) y llamara a conexion.py en vez de leer
-    el JSON local. El resto de la logica (evaluador.py) no deberia
-    tener que cambiar: ese es justamente el punto de aislar el "cerebro".
+    Ejecuta una auditoria.
+    En Fase 1: Ignora las credenciales y usa datos mock.
+    En Fase 2: Usará credenciales.ip y credenciales.usuario con conexion.py.
     """
     if not RUTA_MOCK.exists():
         raise HTTPException(
