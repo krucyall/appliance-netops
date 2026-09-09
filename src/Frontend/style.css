@@ -1,0 +1,95 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #1e1e1e;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 5vh;
+    margin: 0;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    text-align: center;
+}
+
+h1 { font-size: 2.5rem; margin-bottom: 5px; }
+.subtitle { color: #aaaaaa; margin-bottom: 30px; font-size: 1.2rem; }
+
+.selector-equipo {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+select {
+    width: 100%;
+    padding: 15px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    margin-top: 10px;
+}
+
+button {
+    background-color: #0078D7;
+    color: white;
+    border: none;
+    padding: 20px 0;
+    width: 100%;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    transition: background-color 0.3s;
+}
+
+button:active { background-color: #005a9e; transform: scale(0.98); }
+button:disabled { background-color: #555555; cursor: not-allowed; }
+
+#semaforo {
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 15px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    transition: all 0.4s ease;
+}
+
+.apagado { background-color: #333; color: #777; border: 2px solid #555; }
+.procesando { background-color: #d4a017; color: #fff; animation: pulse 1.5s infinite; }
+.verde { background-color: #28a745; color: #fff; box-shadow: 0 0 20px #28a745; }
+.rojo { background-color: #dc3545; color: #fff; box-shadow: 0 0 20px #dc3545; }
+
+/* Estilos de la Consola de Detalles */
+.oculto { display: none; }
+#consola-detalles {
+    margin-top: 30px;
+    background-color: #252526;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: left;
+}
+
+#lista-reglas {
+    list-style-type: none;
+    padding: 0;
+}
+
+#lista-reglas li {
+    padding: 10px;
+    border-bottom: 1px solid #444;
+    font-size: 1.1rem;
+}
+#lista-reglas li:last-child { border-bottom: none; }
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}

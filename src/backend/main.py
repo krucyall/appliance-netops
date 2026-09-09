@@ -17,6 +17,7 @@ import json
 from pathlib import Path
 from typing import List
 
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -87,3 +88,11 @@ def auditar_dispositivo(credenciales: CredencialesDispositivo):
 
     resultado = evaluar_dispositivo(datos_dispositivo)
     return resultado
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

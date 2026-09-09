@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Bloquea el zoom para que funcione como una app nativa en la pantalla táctil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.X.I.S. - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>A.X.I.S.</h1>
+        <p class="subtitle">Audit System for Universal Intelligence</p>
+
+        <!-- Selector de Equipos -->
+        <div class="selector-equipo">
+            <label for="ip_equipo">Seleccionar Equipo Objetivo:</label>
+            <select id="ip_equipo">
+                <option value="192.168.1.10">Router Core (192.168.1.10)</option>
+                <option value="192.168.1.20">Switch Distribución (192.168.1.20)</option>
+                <option value="192.168.1.30">Router Vulnerable GNS3 (192.168.1.30)</option>
+            </select>
+        </div>
+
+        <button id="btn-auditar">AUDITAR EQUIPO</button>
+
+        <div id="semaforo" class="apagado">Esperando conexión...</div>
+
+        <!-- Consola de Detalles (Oculta por defecto) -->
+        <div id="consola-detalles" class="oculto">
+            <h3>Detalle de la Auditoría</h3>
+            <ul id="lista-reglas">
+                <!-- Aquí se inyectarán las reglas mediante JS -->
+            </ul>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
