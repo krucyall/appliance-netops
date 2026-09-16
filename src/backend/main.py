@@ -23,6 +23,24 @@ from pydantic import BaseModel
 
 from evaluador import evaluar_dispositivo
 
+from evaluador import (
+    evaluar_dispositivo,
+    evaluar_ospf,
+    calcular_score_seguridad,
+    comparar_configs,
+)
+
+RUTA_MOCK_OSPF = Path(__file__).parent / "mock_ospf.json"
+RUTA_MOCK_SEGURIDAD = Path(__file__).parent / "mock_seguridad.json"
+RUTA_MOCK_CONFIGS = Path(__file__).parent / "mock_configs.json"
+
+def _cargar_json_o_404(ruta: Path) -> dict:
+    """Helper compartido: carga un mock JSON o lanza 404 con mensaje claro."""
+    if not ruta.exists():
+        raise HTTPException(status_code=404, detail=f"No se encontro el archivo mock en {ruta}.")
+    with open(ruta, "r", encoding="utf-8") as archivo:
+        return json.load(archivo)
+
 app = FastAPI(
     title="M.E.O.W. - Motor NetOps",
     description="API local del appliance NetOps portatil (proyecto de titulo).",
@@ -33,6 +51,69 @@ app = FastAPI(
 # NAPALM (ver conexion.py), pero el contrato de datos (el diccionario
 # de facts) se mantiene identico para no tener que tocar evaluador.py.
 RUTA_MOCK = Path(__file__).parent / "mock_facts.json"
+
+class VecinoOspf(BaseModel):
+    vecino_id: str
+    interfaz: str
+    area: str
+    estado: str
+    es_sano: bool
+    mensaje: str
+    tiempo_muerto_seg: int
+
+
+class ResultadoOspf(BaseModel):
+    check: str
+    estado: str
+    mensaje: str
+    vecinos: List[VecinoOspf]
+
+
+class HallazgoSeguridad(BaseModel):
+    interfaz: str
+    tipo: str
+    severidad: str
+    mensaje: str
+
+
+class ResultadoSeguridad(BaseModel):
+    hostname: str
+    score: int
+    estado_color: str
+    hallazgos: List[HallazgoSeguridad]
+
+
+class LineaDiff(BaseModel):
+    tipo: str
+    linea: str
+
+
+class ResultadoComparacion(BaseModel):
+    hay_cambios_sin_guardar: bool
+    cantidad_diferencias: int
+    mensaje: str
+    diff: List[LineaDiff]
+
+
+@app.get("/api/ospf", response_model=ResultadoOspf)
+def auditar_ospf():
+    """[Modulo L3] Adyacencias OSPF. Hoy lee mock_ospf.json; a futuro, conexion.conectar()."""
+    datos = _cargar_json_o_404(RUTA_MOCK_OSPF)
+    return evaluar_ospf(datos)
+
+
+@app.get("/api/seguridad", response_model=ResultadoSeguridad)
+def auditar_seguridad():
+    """[Modulo L2] Score de Seguridad. Hoy lee mock_seguridad.json."""
+    datos = _cargar_json_o_404(RUTA_MOCK_SEGURIDAD)
+    return calcular_score_seguridad(datos)
+
+
+@app.get("/api/configs/comparar", response_model=ResultadoComparacion)
+def comparar_configuraciones():
+    """[Modulo Disaster Recovery] Diff running vs startup. Hoy lee mock_configs.json."""
+    datos = _cargar_json_o_404(RUTA_MOCK_CONFIGS)
+    return comparar_configs(datos["running_config"], datos["startup_config"])
 
 class CredencialesDispositivo(BaseModel):
     """Contrato de los datos que el Frontend debe enviar para auditar un equipo."""

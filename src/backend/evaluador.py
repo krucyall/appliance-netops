@@ -12,6 +12,7 @@ sin internet ni GNS3).
 """
 
 import re
+import difflib
 from typing import Any, Dict
 
 # --- Configuracion de umbrales (constantes de negocio) ---
@@ -20,6 +21,7 @@ from typing import Any, Dict
 # aqui. Por ahora sirven para dejar la logica funcionando de punta a punta.
 VERSION_MINIMA_ACEPTABLE = 15.0
 UPTIME_MINIMO_SEGUNDOS = 10 * 60  # 10 minutos
+
 
 
 def _extraer_version_numerica(os_version: str) -> float:
@@ -159,3 +161,166 @@ if __name__ == "__main__":
         "uptime": 300,
     }
     print(json.dumps(evaluar_dispositivo(datos_ejemplo), indent=2, ensure_ascii=False))
+
+def evaluar_ospf(datos: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Audita las adyacencias OSPF de un dispositivo.
+
+    Un vecino se considera sano solo en estado 'FULL'. Cualquier otro
+    estado (INIT, 2-WAY, EXSTART, EXCHANGE, LOADING) indica una
+    adyacencia que no termino de converger.
+
+    Args:
+        datos: Diccionario con la forma
+            {"hostname": str, "vecinos_ospf": [{"vecino_id": str,
+            "interfaz": str, "area": str, "estado": str,
+            "tiempo_muerto_seg": int}, ...]}.
+
+    Returns:
+        Diccionario con el estado general del check y el detalle
+        enriquecido de cada vecino (agrega 'es_sano' y 'mensaje').
+    """
+    vecinos = datos.get("vecinos_ospf", [])
+
+    if not vecinos:
+        return {
+            "check": "ospf",
+            "estado": "rojo",
+            "mensaje": "No se reportaron vecinos OSPF. Verifique que el proceso OSPF este activo.",
+            "vecinos": [],
+        }
+
+    ESTADOS_SANOS = {"FULL"}
+    detalle_vecinos = []
+    hay_problemas = False
+
+    for vecino in vecinos:
+        estado_vecino = vecino.get("estado", "DESCONOCIDO")
+        es_sano = estado_vecino in ESTADOS_SANOS
+        hay_problemas = hay_problemas or not es_sano
+
+        detalle_vecinos.append({
+            **vecino,
+            "es_sano": es_sano,
+            "mensaje": (
+                f"Adyacencia estable con {vecino.get('vecino_id', '?')}."
+                if es_sano
+                else f"Vecino {vecino.get('vecino_id', '?')} atascado en estado "
+                     f"'{estado_vecino}'. Revise MTU, tipo de red o autenticacion OSPF."
+            ),
+        })
+
+    return {
+        "check": "ospf",
+        "estado": "rojo" if hay_problemas else "verde",
+        "mensaje": (
+            "Una o mas adyacencias OSPF no llegaron a FULL."
+            if hay_problemas
+            else "Todas las adyacencias OSPF estan en estado FULL."
+        ),
+        "vecinos": detalle_vecinos,
+    }
+
+
+def calcular_score_seguridad(datos: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Calcula un Score de Seguridad L2 (0-100) sobre un set de interfaces.
+
+    Reglas actuales (ponderacion provisional, ajustar con el estandar
+    CIS/NSA que esta documentando Bastian):
+        - VLAN de acceso == 1               -> -15 pts (severidad alta)
+        - PortFast activo sin BPDU Guard    -> -10 pts (severidad media)
+
+    Args:
+        datos: Diccionario con la forma
+            {"hostname": str, "interfaces_analizadas": [{"interfaz": str,
+            "vlan_acceso": int, "bpdu_guard": bool, "portfast": bool}, ...]}.
+
+    Returns:
+        Diccionario con el score final, un color de estado derivado de
+        umbrales, y el detalle de cada hallazgo.
+    """
+    interfaces = datos.get("interfaces_analizadas", [])
+    score = 100
+    hallazgos = []
+
+    for interfaz in interfaces:
+        nombre = interfaz.get("interfaz", "?")
+
+        if interfaz.get("vlan_acceso") == 1:
+            score -= 15
+            hallazgos.append({
+                "interfaz": nombre,
+                "tipo": "vlan1_en_acceso",
+                "severidad": "alta",
+                "mensaje": f"{nombre} usa VLAN 1 como VLAN de acceso. Reasignar a una VLAN dedicada.",
+            })
+
+        if interfaz.get("portfast") and not interfaz.get("bpdu_guard"):
+            score -= 10
+            hallazgos.append({
+                "interfaz": nombre,
+                "tipo": "sin_bpdu_guard",
+                "severidad": "media",
+                "mensaje": f"{nombre} tiene PortFast sin BPDU Guard. Riesgo de loop por switch no autorizado.",
+            })
+
+    score = max(score, 0)
+    estado_color = "verde" if score >= 90 else "amarillo" if score >= 70 else "rojo"
+
+    return {
+        "hostname": datos.get("hostname", "desconocido"),
+        "score": score,
+        "estado_color": estado_color,
+        "hallazgos": hallazgos,
+    }
+
+
+def comparar_configs(running: str, startup: str) -> Dict[str, Any]:
+    """
+    Compara running-config vs startup-config linea por linea y arma un
+    diff estructurado listo para el Diff Viewer del Frontend.
+
+    Args:
+        running: Texto completo de la running-config.
+        startup: Texto completo de la startup-config.
+
+    Returns:
+        Diccionario con un resumen (si hay cambios sin guardar) y la
+        lista de lineas etiquetadas como 'igual', 'agregada' (solo en
+        running: cambio hecho pero no guardado) o 'eliminada' (solo en
+        startup: se perderia si alguien la reintrodujera).
+    """
+    lineas_startup = startup.strip().splitlines()
+    lineas_running = running.strip().splitlines()
+
+    diff = difflib.ndiff(lineas_startup, lineas_running)
+    resultado_lineas = []
+    cantidad_diferencias = 0
+
+    for linea in diff:
+        marca, contenido = linea[:2], linea[2:]
+        if marca == "  ":
+            resultado_lineas.append({"tipo": "igual", "linea": contenido})
+        elif marca == "+ ":
+            resultado_lineas.append({"tipo": "agregada", "linea": contenido})
+            cantidad_diferencias += 1
+        elif marca == "- ":
+            resultado_lineas.append({"tipo": "eliminada", "linea": contenido})
+            cantidad_diferencias += 1
+                    # Las lineas '? ' de ndiff (marcadores intra-linea) se ignoran:
+        # no aportan valor a un diff linea-por-linea.
+
+    hay_cambios_sin_guardar = cantidad_diferencias > 0
+
+    return {
+        "hay_cambios_sin_guardar": hay_cambios_sin_guardar,
+        "cantidad_diferencias": cantidad_diferencias,
+        "mensaje": (
+            f"Hay {cantidad_diferencias} linea(s) que difieren entre running-config y "
+            "startup-config. Si el equipo se reinicia, estos cambios se perderan."
+            if hay_cambios_sin_guardar
+            else "La running-config coincide con la startup-config. No hay cambios sin guardar."
+        ),
+        "diff": resultado_lineas,
+    }
