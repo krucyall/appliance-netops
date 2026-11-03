@@ -22,13 +22,14 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import List
+from typing import Any, Callable, Dict, List
 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
 from conexion import ErrorConexion, obtener_facts, verificar_conectividad_tcp
+from extractores import obtener_configs, obtener_interfaces_l2, obtener_vecinos_ospf
 
 MODOS_VALIDOS = ("mock", "real")
 MODO = os.environ.get("MEOW_MODO", "mock").strip().lower()
@@ -86,6 +87,7 @@ class ResultadoOspf(BaseModel):
     estado: str
     mensaje: str
     vecinos: List[VecinoOspf]
+    modo: str  # "mock" | "real"
 
 
 class HallazgoSeguridad(BaseModel):
@@ -99,7 +101,9 @@ class ResultadoSeguridad(BaseModel):
     hostname: str
     score: int
     estado_color: str
+    cantidad_interfaces: int  # Puertos de acceso analizados (0 = nada que evaluar)
     hallazgos: List[HallazgoSeguridad]
+    modo: str  # "mock" | "real"
 
 
 class LineaDiff(BaseModel):
@@ -112,27 +116,8 @@ class ResultadoComparacion(BaseModel):
     cantidad_diferencias: int
     mensaje: str
     diff: List[LineaDiff]
+    modo: str  # "mock" | "real"
 
-
-@app.get("/api/ospf", response_model=ResultadoOspf)
-def auditar_ospf():
-    """[Modulo L3] Adyacencias OSPF. Hoy lee mock_ospf.json; a futuro, conexion.conectar()."""
-    datos = _cargar_json_o_404(RUTA_MOCK_OSPF)
-    return evaluar_ospf(datos)
-
-
-@app.get("/api/seguridad", response_model=ResultadoSeguridad)
-def auditar_seguridad():
-    """[Modulo L2] Score de Seguridad. Hoy lee mock_seguridad.json."""
-    datos = _cargar_json_o_404(RUTA_MOCK_SEGURIDAD)
-    return calcular_score_seguridad(datos)
-
-
-@app.get("/api/configs/comparar", response_model=ResultadoComparacion)
-def comparar_configuraciones():
-    """[Modulo Disaster Recovery] Diff running vs startup. Hoy lee mock_configs.json."""
-    datos = _cargar_json_o_404(RUTA_MOCK_CONFIGS)
-    return comparar_configs(datos["running_config"], datos["startup_config"])
 
 class CredencialesDispositivo(BaseModel):
     """
@@ -146,6 +131,67 @@ class CredencialesDispositivo(BaseModel):
     usuario: str = ""
     password: str = ""
     driver_name: str = "ios"  # Valor por defecto para equipos Cisco
+
+
+def _datos_del_equipo(
+    credenciales: CredencialesDispositivo,
+    ruta_mock: Path,
+    obtener: Callable[..., Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    Punto unico de decision mock/real para todos los modulos de auditoria.
+
+    - Modo mock: carga `ruta_mock`.
+    - Modo real: llama a `obtener(ip, usuario, password, driver_name=...)`
+      (obtener_facts, obtener_vecinos_ospf, ...). Responde 400 si faltan
+      credenciales y 502 con un 'detail' en espanol si falla la conexion.
+    """
+    if MODO == "mock":
+        return _cargar_json_o_404(ruta_mock)
+
+    if not credenciales.usuario or not credenciales.password:
+        raise HTTPException(
+            status_code=400,
+            detail="Ingrese usuario y contrasena SSH del equipo.",
+        )
+    try:
+        return obtener(
+            credenciales.ip,
+            credenciales.usuario,
+            credenciales.password,
+            driver_name=credenciales.driver_name,
+        )
+    except ErrorConexion as error:
+        # El detalle tecnico va al log del servidor, no a la pantalla.
+        logger.warning(
+            "Fallo %s en %s: %s | %s",
+            obtener.__name__,
+            credenciales.ip,
+            error.mensaje_usuario,
+            error.detalle_tecnico,
+        )
+        raise HTTPException(status_code=502, detail=error.mensaje_usuario)
+
+
+@app.post("/api/ospf", response_model=ResultadoOspf)
+def auditar_ospf(credenciales: CredencialesDispositivo):
+    """[Modulo L3] Adyacencias OSPF (`show ip ospf neighbor detail`, solo Cisco IOS)."""
+    datos = _datos_del_equipo(credenciales, RUTA_MOCK_OSPF, obtener_vecinos_ospf)
+    return {**evaluar_ospf(datos), "modo": MODO}
+
+
+@app.post("/api/seguridad", response_model=ResultadoSeguridad)
+def auditar_seguridad(credenciales: CredencialesDispositivo):
+    """[Modulo L2] Score de Seguridad de los puertos de acceso (running-config, solo Cisco IOS)."""
+    datos = _datos_del_equipo(credenciales, RUTA_MOCK_SEGURIDAD, obtener_interfaces_l2)
+    return {**calcular_score_seguridad(datos), "modo": MODO}
+
+
+@app.post("/api/configs/comparar", response_model=ResultadoComparacion)
+def comparar_configuraciones(credenciales: CredencialesDispositivo):
+    """[Modulo Disaster Recovery] Diff running vs startup (contrasenas ocultas como '<removed>')."""
+    datos = _datos_del_equipo(credenciales, RUTA_MOCK_CONFIGS, obtener_configs)
+    return {**comparar_configs(datos["running_config"], datos["startup_config"]), "modo": MODO}
 
 class ResultadoCheck(BaseModel):
     """Contrato de un check individual, para que Frontend sepa que esperar."""
@@ -229,38 +275,10 @@ def auditar_dispositivo(credenciales: CredencialesDispositivo):
 
     - Modo mock: ignora las credenciales y usa mock_facts.json.
     - Modo real: se conecta por SSH (NAPALM) con las credenciales
-      recibidas. Si falla, responde 400 (faltan credenciales) o 502
-      (no se pudo hablar con el equipo) con un 'detail' en espanol
-      listo para mostrar en la pantalla tactil.
+      recibidas. Errores: ver `_datos_del_equipo()`.
     """
-    if MODO == "mock":
-        datos_dispositivo = _cargar_json_o_404(RUTA_MOCK)
-    else:
-        if not credenciales.usuario or not credenciales.password:
-            raise HTTPException(
-                status_code=400,
-                detail="Ingrese usuario y contrasena SSH del equipo.",
-            )
-        try:
-            datos_dispositivo = obtener_facts(
-                credenciales.ip,
-                credenciales.usuario,
-                credenciales.password,
-                driver_name=credenciales.driver_name,
-            )
-        except ErrorConexion as error:
-            # El detalle tecnico va al log del servidor, no a la pantalla.
-            logger.warning(
-                "Fallo auditoria de %s: %s | %s",
-                credenciales.ip,
-                error.mensaje_usuario,
-                error.detalle_tecnico,
-            )
-            raise HTTPException(status_code=502, detail=error.mensaje_usuario)
-
-    resultado = evaluar_dispositivo(datos_dispositivo)
-    resultado["modo"] = MODO
-    return resultado
+    datos_dispositivo = _datos_del_equipo(credenciales, RUTA_MOCK, obtener_facts)
+    return {**evaluar_dispositivo(datos_dispositivo), "modo": MODO}
 
 app.add_middleware(
     CORSMiddleware,

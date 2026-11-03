@@ -276,6 +276,9 @@ def calcular_score_seguridad(datos: Dict[str, Any]) -> Dict[str, Any]:
         "hostname": datos.get("hostname", "desconocido"),
         "score": score,
         "estado_color": estado_color,
+        # Un 100 sin puertos analizados (ej: un router) no significa
+        # "seguro": el Frontend debe poder distinguir ese caso.
+        "cantidad_interfaces": len(interfaces),
         "hallazgos": hallazgos,
     }
 
