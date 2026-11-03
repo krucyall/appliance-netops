@@ -33,6 +33,7 @@ try:
         ConnectAuthError,
         ConnectionException,
         ConnectTimeoutError,
+        ModuleImportError,
     )
     from netmiko.exceptions import NetmikoAuthenticationException
 
@@ -130,7 +131,18 @@ def conectar(
             detalle_tecnico="Instalar con: pip install -r requirements.txt",
         )
 
-    driver_class = get_network_driver(driver_name)
+    try:
+        driver_class = get_network_driver(driver_name)
+    except ModuleImportError as error:
+        # Pasa con nombres que no son drivers NAPALM (ej: "cisco" en vez
+        # de "ios") o con drivers de la comunidad no instalados (ej:
+        # "vyos" requiere `pip install napalm-vyos`).
+        raise ErrorConexion(
+            f"Error: El tipo de equipo '{driver_name}' no es compatible o su "
+            "driver no esta instalado en el appliance.",
+            detalle_tecnico=str(error),
+        )
+
     dispositivo = driver_class(
         hostname=ip,
         username=usuario,
