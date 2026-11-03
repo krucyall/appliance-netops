@@ -18,9 +18,10 @@ from pathlib import Path
 from typing import List
 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
+from conexion import verificar_conectividad_tcp
 from evaluador import evaluar_dispositivo
 
 from evaluador import (
@@ -144,10 +145,37 @@ class ResultadoAuditoria(BaseModel):
     checks: List[ResultadoCheck]
 
 
+class ResultadoPing(BaseModel):
+    """Contrato de respuesta de /api/ping (prueba TCP de 1-toque)."""
+
+    alcanzable: bool
+    ip: str
+    puerto: int
+    latencia_ms: float
+    mensaje: str
+
+
 @app.get("/api/estado")
 def estado_motor():
     """Endpoint de salud: confirma que el motor esta corriendo."""
     return {"estado": "ok", "mensaje": "Motor M.E.O.W. operativo."}
+
+
+@app.get("/api/ping", response_model=ResultadoPing)
+def ping_dispositivo(
+    ip: str,
+    puerto: int = Query(22, ge=1, le=65535),
+    timeout: float = Query(2.0, gt=0, le=10),
+):
+    """
+    Prueba rapida de conectividad TCP (por defecto SSH, puerto 22).
+
+    Sirve para que la pantalla tactil confirme que el equipo responde
+    antes de lanzar una auditoria completa. Siempre responde 200: si el
+    equipo no es alcanzable, se indica con alcanzable=False y un mensaje.
+    Ejemplo: /api/ping?ip=192.168.1.1
+    """
+    return verificar_conectividad_tcp(ip, puerto, timeout)
 
 
 @app.post("/api/auditar", response_model=ResultadoAuditoria)

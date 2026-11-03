@@ -17,17 +17,29 @@ sola conexion, en vez de tres handshakes SSH separados).
 para el caso de uso mas simple (un solo get_facts + interfaces).
 """
 
+import socket
+import time
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator
 
-from napalm import get_network_driver
-from napalm.base.base import NetworkDriver
-from napalm.base.exceptions import (
-    ConnectAuthError,
-    ConnectionException,
-    ConnectTimeoutError,
-)
-from netmiko.exceptions import NetmikoAuthenticationException
+# NAPALM (y Netmiko, que viene con NAPALM) son opcionales al importar:
+# asi main.py puede arrancar en el bus sin NAPALM instalado y servir los
+# endpoints mock y /api/ping. Solo `conectar()` / `obtener_facts()`
+# lo necesitan, y avisan con ErrorConexion si falta.
+try:
+    from napalm import get_network_driver
+    from napalm.base.base import NetworkDriver
+    from napalm.base.exceptions import (
+        ConnectAuthError,
+        ConnectionException,
+        ConnectTimeoutError,
+    )
+    from netmiko.exceptions import NetmikoAuthenticationException
+
+    NAPALM_DISPONIBLE = True
+except ImportError:
+    NetworkDriver = Any  # Solo para los type hints
+    NAPALM_DISPONIBLE = False
 
 
 class ErrorConexion(Exception):
@@ -112,6 +124,12 @@ def conectar(
     Garantiza el cierre de la sesion al salir del bloque `with`, haya
     o no error. Lanza ErrorConexion ante cualquier falla de apertura.
     """
+    if not NAPALM_DISPONIBLE:
+        raise ErrorConexion(
+            "Error: El appliance no tiene instalada la libreria de conexion (NAPALM).",
+            detalle_tecnico="Instalar con: pip install -r requirements.txt",
+        )
+
     driver_class = get_network_driver(driver_name)
     dispositivo = driver_class(
         hostname=ip,
@@ -151,6 +169,57 @@ def obtener_facts(
                 "Se logro conectar, pero fallo la extraccion de datos del equipo.",
                 detalle_tecnico=str(error),
             )
+
+
+def verificar_conectividad_tcp(
+    ip: str,
+    puerto: int = 22,
+    timeout: float = 2.0,
+) -> Dict[str, Any]:
+    """
+    Verifica si un puerto TCP (por defecto SSH, 22) esta abierto y accesible.
+
+    Pensado como prueba rapida de 1-toque antes de abrir la sesion NAPALM
+    completa (que tarda varios segundos en fallar si el equipo no responde).
+    No lanza excepciones: siempre retorna un dict con 'alcanzable' y un
+    'mensaje' listo para mostrar en la pantalla tactil.
+    """
+    inicio = time.perf_counter()
+
+    def _resultado(alcanzable: bool, mensaje: str) -> Dict[str, Any]:
+        return {
+            "alcanzable": alcanzable,
+            "ip": ip,
+            "puerto": puerto,
+            "latencia_ms": round((time.perf_counter() - inicio) * 1000, 2),
+            "mensaje": mensaje,
+        }
+
+    try:
+        # create_connection + `with` garantiza que el socket se cierre
+        # siempre, incluso si la conexion falla.
+        with socket.create_connection((ip, puerto), timeout=timeout):
+            pass
+    except socket.timeout:
+        return _resultado(
+            False,
+            f"Tiempo de espera agotado al conectar con {ip}:{puerto}. "
+            "Verifique el cable, la IP o que el equipo este encendido.",
+        )
+    except ConnectionRefusedError:
+        return _resultado(
+            False,
+            f"El equipo {ip} respondio, pero el puerto {puerto} esta cerrado.",
+        )
+    except OSError as error:
+        # Cubre IP invalida, red inalcanzable, nombre no resuelto, etc.
+        return _resultado(False, f"Error de red al sondear {ip}: {error}")
+
+    resultado = _resultado(True, "")
+    resultado["mensaje"] = (
+        f"Puerto {puerto} abierto y accesible ({resultado['latencia_ms']} ms)."
+    )
+    return resultado
 
 
 if __name__ == "__main__":
