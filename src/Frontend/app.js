@@ -1,4 +1,36 @@
+const API_URL = 'http://127.0.0.1:8000';
+
 document.getElementById('btn-auditar').addEventListener('click', ejecutarAuditoria);
+cargarDispositivos();
+
+// Llena el selector con el inventario que entrega el backend (dispositivos_lab.json)
+async function cargarDispositivos() {
+    const selector = document.getElementById('ip_equipo');
+    const boton = document.getElementById('btn-auditar');
+    boton.disabled = true;
+
+    try {
+        const respuesta = await fetch(`${API_URL}/api/dispositivos`);
+        if (!respuesta.ok) {
+            throw new Error(`HTTP error! status: ${respuesta.status}`);
+        }
+        const dispositivos = await respuesta.json();
+
+        selector.innerHTML = '';
+        dispositivos.forEach(equipo => {
+            const opcion = document.createElement('option');
+            opcion.value = equipo.ip;
+            opcion.dataset.driver = equipo.driver;
+            // textContent (no innerHTML) para que un nombre raro no inyecte HTML
+            opcion.textContent = `${equipo.nombre} (${equipo.ip})`;
+            selector.appendChild(opcion);
+        });
+        boton.disabled = dispositivos.length === 0;
+    } catch (error) {
+        selector.innerHTML = '<option value="">No se pudo cargar la lista de equipos</option>';
+        console.error("Error al cargar dispositivos:", error);
+    }
+}
 
 async function ejecutarAuditoria() {
     const semaforo = document.getElementById('semaforo');
@@ -7,12 +39,13 @@ async function ejecutarAuditoria() {
     const listaReglas = document.getElementById('lista-reglas');
     
     // 1. Capturamos la IP y armamos el JSON que espera tu FastAPI (clase CredencialesDispositivo)
-    const ipSeleccionada = document.getElementById('ip_equipo').value;
+    const selector = document.getElementById('ip_equipo');
+    const ipSeleccionada = selector.value;
     const credenciales = {
         ip: ipSeleccionada,
         usuario: "admin",
         password: "password123",
-        driver_name: "ios"
+        driver_name: selector.selectedOptions[0]?.dataset.driver || "ios"
     };
 
     // Resetear UI
@@ -24,7 +57,7 @@ async function ejecutarAuditoria() {
 
     try {
         // 2. Hacemos un POST a la ruta correcta (/api/auditar)
-        const respuesta = await fetch('http://127.0.0.1:8000/api/auditar', {
+        const respuesta = await fetch(`${API_URL}/api/auditar`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

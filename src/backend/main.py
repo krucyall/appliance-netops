@@ -34,6 +34,9 @@ from evaluador import (
 RUTA_MOCK_OSPF = Path(__file__).parent / "mock_ospf.json"
 RUTA_MOCK_SEGURIDAD = Path(__file__).parent / "mock_seguridad.json"
 RUTA_MOCK_CONFIGS = Path(__file__).parent / "mock_configs.json"
+# Inventario de equipos del laboratorio. Solo datos fijos (IP, driver,
+# ubicacion): version, uptime, etc. se obtienen en vivo via NAPALM.
+RUTA_DISPOSITIVOS = Path(__file__).parent / "dispositivos_lab.json"
 
 def _cargar_json_o_404(ruta: Path) -> dict:
     """Helper compartido: carga un mock JSON o lanza 404 con mensaje claro."""
@@ -145,6 +148,19 @@ class ResultadoAuditoria(BaseModel):
     checks: List[ResultadoCheck]
 
 
+class Dispositivo(BaseModel):
+    """Contrato de un equipo del inventario (dispositivos_lab.json)."""
+
+    id: str
+    nombre: str
+    ip: str
+    rol: str
+    driver: str  # Nombre del driver NAPALM: "ios", "eos", "junos", "vyos"...
+    modelo: str
+    ubicacion: str
+    puerto_ssh: int = 22
+
+
 class ResultadoPing(BaseModel):
     """Contrato de respuesta de /api/ping (prueba TCP de 1-toque)."""
 
@@ -159,6 +175,12 @@ class ResultadoPing(BaseModel):
 def estado_motor():
     """Endpoint de salud: confirma que el motor esta corriendo."""
     return {"estado": "ok", "mensaje": "Motor M.E.O.W. operativo."}
+
+
+@app.get("/api/dispositivos", response_model=List[Dispositivo])
+def listar_dispositivos():
+    """Lista los equipos del laboratorio para el selector del Frontend."""
+    return _cargar_json_o_404(RUTA_DISPOSITIVOS)
 
 
 @app.get("/api/ping", response_model=ResultadoPing)
