@@ -50,7 +50,7 @@ async function ejecutarAuditoria() {
 
     // Resetear UI
     semaforo.className = 'procesando';
-    semaforo.innerHTML = `Conectando por SSH a ${ipSeleccionada}...`;
+    semaforo.textContent = `Conectando por SSH a ${ipSeleccionada}...`;
     boton.disabled = true;
     consola.classList.add('oculto');
     listaReglas.innerHTML = '';
@@ -72,19 +72,27 @@ async function ejecutarAuditoria() {
         const datos = await respuesta.json();
 
         // 3. Evaluar Semáforo leyendo 'estado_general' (como lo definiste en tu backend)
+        // hostname, check y mensaje vienen del equipo: se insertan con
+        // textContent (nunca innerHTML) para que no puedan inyectar HTML.
         if (datos.estado_general === "verde") {
             semaforo.className = 'verde';
-            semaforo.innerHTML = `✅ ${datos.hostname} Seguro y Operativo`;
+            semaforo.textContent = `✅ ${datos.hostname} Seguro y Operativo`;
         } else {
             semaforo.className = 'rojo';
-            semaforo.innerHTML = `❌ ${datos.hostname} Vulnerabilidades Detectadas`;
+            semaforo.textContent = `❌ ${datos.hostname} Vulnerabilidades Detectadas`;
         }
 
         // 4. Poblar la consola de detalles leyendo tu lista 'checks'
         if (datos.checks && datos.checks.length > 0) {
             datos.checks.forEach(regla => {
                 const li = document.createElement('li');
-                li.innerHTML = `${regla.estado === 'verde' ? '✅' : '❌'} <strong>${regla.check}:</strong> ${regla.mensaje}`;
+                const nombreCheck = document.createElement('strong');
+                nombreCheck.textContent = `${regla.check}:`;
+                li.append(
+                    `${regla.estado === 'verde' ? '✅' : '❌'} `,
+                    nombreCheck,
+                    ` ${regla.mensaje}`
+                );
                 listaReglas.appendChild(li);
             });
             consola.classList.remove('oculto');
@@ -92,7 +100,7 @@ async function ejecutarAuditoria() {
 
     } catch (error) {
         semaforo.className = 'rojo';
-        semaforo.innerHTML = '⚠️ Error de Comunicación con API';
+        semaforo.textContent = '⚠️ Error de Comunicación con API';
         console.error("Error al auditar:", error);
     } finally {
         boton.disabled = false;
