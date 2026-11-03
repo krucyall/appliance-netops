@@ -12,6 +12,9 @@
         <h1>A.X.I.S.</h1>
         <p class="subtitle">Audit System for Universal Intelligence</p>
 
+        <!-- Aviso de modo prueba: se muestra si el backend corre con MEOW_MODO=mock -->
+        <div id="aviso-modo" class="oculto">MODO PRUEBA: resultados con datos simulados, no del equipo real</div>
+
         <!-- Selector de Equipos -->
         <div class="selector-equipo">
             <label for="ip_equipo">Seleccionar Equipo Objetivo:</label>
@@ -19,6 +22,14 @@
             <select id="ip_equipo">
                 <option value="">Cargando equipos...</option>
             </select>
+        </div>
+
+        <!-- Credenciales SSH: solo se piden en modo real. No se guardan en ningun lado. -->
+        <div id="credenciales" class="selector-equipo oculto">
+            <label for="usuario_ssh">Usuario SSH:</label>
+            <input type="text" id="usuario_ssh" autocomplete="off" autocapitalize="off" spellcheck="false">
+            <label for="password_ssh">Contraseña SSH:</label>
+            <input type="password" id="password_ssh" autocomplete="off">
         </div>
 
         <button id="btn-auditar">AUDITAR EQUIPO</button>

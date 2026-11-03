@@ -2,18 +2,25 @@
 main.py
 Esqueleto de la API REST del proyecto M.E.O.W. (FastAPI).
 
-En esta fase (offline / bus) el endpoint /api/auditar NO se conecta a
-ningun equipo real: lee un archivo mock_facts.json local y lo pasa por
-el motor de evaluacion (evaluador.py). Esto permite desarrollar y
-probar toda la logica de la API sin depender de GNS3 ni de internet.
+El modo de /api/auditar se elige con la variable de entorno MEOW_MODO:
+    - "mock" (por defecto): lee mock_facts.json, sin conectarse a nada.
+      Sirve para desarrollar offline (bus) sin GNS3 ni internet.
+    - "real": se conecta por SSH al equipo via NAPALM (conexion.py)
+      con las credenciales que envia el Frontend.
+No hay respaldo automatico: en modo real, si el equipo no responde se
+muestra el error, nunca datos mock haciendose pasar por reales.
 
-Correr localmente:
-    uvicorn main:app --reload
+Correr localmente (desde src/backend):
+    uvicorn main:app --reload                  # modo mock
+    MEOW_MODO=real uvicorn main:app --reload   # modo real (bash/Linux)
+    $env:MEOW_MODO="real"; uvicorn main:app --reload   # PowerShell
 Luego abrir en el navegador: http://localhost:8000/docs
 (la interfaz de pruebas de FastAPI se genera sola, sin internet)
 """
 
 import json
+import logging
+import os
 from pathlib import Path
 from typing import List
 
@@ -21,8 +28,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel
 
-from conexion import verificar_conectividad_tcp
-from evaluador import evaluar_dispositivo
+from conexion import ErrorConexion, obtener_facts, verificar_conectividad_tcp
+
+MODOS_VALIDOS = ("mock", "real")
+MODO = os.environ.get("MEOW_MODO", "mock").strip().lower()
+if MODO not in MODOS_VALIDOS:
+    raise RuntimeError(
+        f"MEOW_MODO='{MODO}' no es valido. Use uno de: {', '.join(MODOS_VALIDOS)}."
+    )
+
+logger = logging.getLogger("meow")
 
 from evaluador import (
     evaluar_dispositivo,
@@ -120,10 +135,16 @@ def comparar_configuraciones():
     return comparar_configs(datos["running_config"], datos["startup_config"])
 
 class CredencialesDispositivo(BaseModel):
-    """Contrato de los datos que el Frontend debe enviar para auditar un equipo."""
+    """
+    Contrato de los datos que el Frontend debe enviar para auditar un equipo.
+
+    usuario/password los escribe el tecnico en la pantalla tactil. Solo
+    son obligatorios en modo real (en modo mock se ignoran). Nunca se
+    guardan ni se escriben en el log.
+    """
     ip: str
-    usuario: str
-    password: str
+    usuario: str = ""
+    password: str = ""
     driver_name: str = "ios"  # Valor por defecto para equipos Cisco
 
 class ResultadoCheck(BaseModel):
@@ -146,6 +167,7 @@ class ResultadoAuditoria(BaseModel):
     hostname: str
     estado_general: str  # "verde" | "rojo"
     checks: List[ResultadoCheck]
+    modo: str  # "mock" | "real": el Frontend avisa si son datos de prueba
 
 
 class Dispositivo(BaseModel):
@@ -173,8 +195,8 @@ class ResultadoPing(BaseModel):
 
 @app.get("/api/estado")
 def estado_motor():
-    """Endpoint de salud: confirma que el motor esta corriendo."""
-    return {"estado": "ok", "mensaje": "Motor M.E.O.W. operativo."}
+    """Endpoint de salud: confirma que el motor esta corriendo y en que modo."""
+    return {"estado": "ok", "mensaje": "Motor M.E.O.W. operativo.", "modo": MODO}
 
 
 @app.get("/api/dispositivos", response_model=List[Dispositivo])
@@ -203,21 +225,41 @@ def ping_dispositivo(
 @app.post("/api/auditar", response_model=ResultadoAuditoria)
 def auditar_dispositivo(credenciales: CredencialesDispositivo):
     """
-    Ejecuta una auditoria.
-    En Fase 1: Ignora las credenciales y usa datos mock.
-    En Fase 2: Usará credenciales.ip y credenciales.usuario con conexion.py.
-    """
-    if not RUTA_MOCK.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"No se encontro el archivo mock en {RUTA_MOCK}. "
-            "Crea mock_facts.json en esta misma carpeta.",
-        )
+    Ejecuta una auditoria de firmware + uptime.
 
-    with open(RUTA_MOCK, "r", encoding="utf-8") as archivo:
-        datos_dispositivo = json.load(archivo)
+    - Modo mock: ignora las credenciales y usa mock_facts.json.
+    - Modo real: se conecta por SSH (NAPALM) con las credenciales
+      recibidas. Si falla, responde 400 (faltan credenciales) o 502
+      (no se pudo hablar con el equipo) con un 'detail' en espanol
+      listo para mostrar en la pantalla tactil.
+    """
+    if MODO == "mock":
+        datos_dispositivo = _cargar_json_o_404(RUTA_MOCK)
+    else:
+        if not credenciales.usuario or not credenciales.password:
+            raise HTTPException(
+                status_code=400,
+                detail="Ingrese usuario y contrasena SSH del equipo.",
+            )
+        try:
+            datos_dispositivo = obtener_facts(
+                credenciales.ip,
+                credenciales.usuario,
+                credenciales.password,
+                driver_name=credenciales.driver_name,
+            )
+        except ErrorConexion as error:
+            # El detalle tecnico va al log del servidor, no a la pantalla.
+            logger.warning(
+                "Fallo auditoria de %s: %s | %s",
+                credenciales.ip,
+                error.mensaje_usuario,
+                error.detalle_tecnico,
+            )
+            raise HTTPException(status_code=502, detail=error.mensaje_usuario)
 
     resultado = evaluar_dispositivo(datos_dispositivo)
+    resultado["modo"] = MODO
     return resultado
 
 app.add_middleware(

@@ -28,14 +28,18 @@ def _extraer_version_numerica(os_version: str) -> float:
     """
     Extrae la porcion numerica principal de un string de version de IOS.
 
-    Los equipos Cisco suelen reportar cadenas como "15.4(3)M2" o
-    "12.4(24)T". Para poder comparar, se toma solo el primer numero
-    con su decimal (ej: 15.4).
+    Los mocks traen cadenas cortas como "15.4(3)M2" o "12.4(24)T", pero
+    NAPALM get_facts() en un equipo real entrega la linea completa, ej:
+    "7200 Software (C7200-ADVENTERPRISEK9-M), Version 15.2(4)S7, RELEASE...".
+    Por eso se busca primero el numero que sigue a "Version" y, si no
+    aparece, el primer "X.Y" del texto. Se toma solo mayor.menor (ej: 15.2).
 
     Retorna 0.0 si no se pudo interpretar el formato, para que quien
     llama decida como manejar un dato no confiable.
     """
-    match = re.match(r"(\d+)\.(\d+)", os_version.strip())
+    match = re.search(r"Version\s+(\d+)\.(\d+)", os_version) or re.search(
+        r"(\d+)\.(\d+)", os_version
+    )
     if not match:
         return 0.0
     mayor, menor = match.groups()

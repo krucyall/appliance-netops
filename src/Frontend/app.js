@@ -1,7 +1,28 @@
 const API_URL = 'http://127.0.0.1:8000';
 
+// "mock" | "real" segun MEOW_MODO del backend (se lee de /api/estado al iniciar)
+let modoApi = null;
+
 document.getElementById('btn-auditar').addEventListener('click', ejecutarAuditoria);
+cargarModo();
 cargarDispositivos();
+
+// Pregunta al backend en que modo corre: en mock muestra el aviso de
+// datos simulados, en real muestra los campos de usuario/contrasena.
+async function cargarModo() {
+    try {
+        const respuesta = await fetch(`${API_URL}/api/estado`);
+        if (!respuesta.ok) {
+            throw new Error(`HTTP error! status: ${respuesta.status}`);
+        }
+        modoApi = (await respuesta.json()).modo;
+    } catch (error) {
+        console.error("Error al consultar el modo del backend:", error);
+        return;
+    }
+    document.getElementById('aviso-modo').classList.toggle('oculto', modoApi !== 'mock');
+    document.getElementById('credenciales').classList.toggle('oculto', modoApi !== 'real');
+}
 
 // Llena el selector con el inventario que entrega el backend (dispositivos_lab.json)
 async function cargarDispositivos() {
@@ -41,16 +62,25 @@ async function ejecutarAuditoria() {
     // 1. Capturamos la IP y armamos el JSON que espera tu FastAPI (clase CredencialesDispositivo)
     const selector = document.getElementById('ip_equipo');
     const ipSeleccionada = selector.value;
+    // Usuario/contrasena los escribe el tecnico en pantalla (solo en modo real)
     const credenciales = {
         ip: ipSeleccionada,
-        usuario: "admin",
-        password: "password123",
+        usuario: document.getElementById('usuario_ssh').value.trim(),
+        password: document.getElementById('password_ssh').value,
         driver_name: selector.selectedOptions[0]?.dataset.driver || "ios"
     };
 
+    if (modoApi === 'real' && (!credenciales.usuario || !credenciales.password)) {
+        semaforo.className = 'rojo';
+        semaforo.textContent = '⚠️ Ingrese usuario y contraseña SSH del equipo';
+        return;
+    }
+
     // Resetear UI
     semaforo.className = 'procesando';
-    semaforo.textContent = `Conectando por SSH a ${ipSeleccionada}...`;
+    semaforo.textContent = modoApi === 'mock'
+        ? `Auditando ${ipSeleccionada} (modo prueba)...`
+        : `Conectando por SSH a ${ipSeleccionada}...`;
     boton.disabled = true;
     consola.classList.add('oculto');
     listaReglas.innerHTML = '';
@@ -66,20 +96,34 @@ async function ejecutarAuditoria() {
         });
 
         if (!respuesta.ok) {
-            throw new Error(`HTTP error! status: ${respuesta.status}`);
+            // El backend explica el problema en 'detail' (ej: "Usuario o
+            // contrasena incorrectos"), listo para mostrar en pantalla.
+            let detalle = `Error HTTP ${respuesta.status}`;
+            try {
+                const cuerpo = await respuesta.json();
+                if (typeof cuerpo.detail === 'string') {
+                    detalle = cuerpo.detail;
+                }
+            } catch (e) {
+                // Respuesta sin JSON: se queda el mensaje generico
+            }
+            semaforo.className = 'rojo';
+            semaforo.textContent = `⚠️ ${detalle}`;
+            return;
         }
 
         const datos = await respuesta.json();
+        const sufijoModo = datos.modo === 'mock' ? ' (datos simulados)' : '';
 
         // 3. Evaluar Semáforo leyendo 'estado_general' (como lo definiste en tu backend)
         // hostname, check y mensaje vienen del equipo: se insertan con
         // textContent (nunca innerHTML) para que no puedan inyectar HTML.
         if (datos.estado_general === "verde") {
             semaforo.className = 'verde';
-            semaforo.textContent = `✅ ${datos.hostname} Seguro y Operativo`;
+            semaforo.textContent = `✅ ${datos.hostname} Seguro y Operativo${sufijoModo}`;
         } else {
             semaforo.className = 'rojo';
-            semaforo.textContent = `❌ ${datos.hostname} Vulnerabilidades Detectadas`;
+            semaforo.textContent = `❌ ${datos.hostname} Vulnerabilidades Detectadas${sufijoModo}`;
         }
 
         // 4. Poblar la consola de detalles leyendo tu lista 'checks'

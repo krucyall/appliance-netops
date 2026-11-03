@@ -34,6 +34,28 @@ select {
     margin-top: 10px;
 }
 
+/* Mismo estilo que el select, para que se vea uniforme en la pantalla tactil */
+.selector-equipo input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    background-color: #333;
+    color: white;
+    border: 1px solid #555;
+    margin: 10px 0 15px;
+}
+
+#aviso-modo {
+    background-color: #d4a017;
+    color: #1e1e1e;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
 button {
     background-color: #0078D7;
     color: white;
