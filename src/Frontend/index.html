@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <!-- Bloquea el zoom para que funcione como una app nativa en la pantalla táctil -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A.X.I.S. - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="barra">
+        <div class="marca">
+            <h1>A.X.I.S.</h1>
+            <p class="subtitle">Audit System for Universal Intelligence</p>
+        </div>
+        <span id="chip-motor" class="chip-motor" title="Estado del motor">● Motor</span>
+        <button id="btn-sesion" class="chip-sesion" type="button" aria-haspopup="dialog" aria-expanded="false" aria-label="Configurar equipo y credenciales">
+            <span aria-hidden="true">🔑</span><span class="chip-texto">Configurar equipo</span>
+        </button>
+    </header>
+
+    <!-- Aviso visible si el motor (backend) no responde -->
+    <div id="banner-offline" class="banner-offline oculto" role="alert">
+        <span>🔌 Sin comunicación con el motor A.X.I.S. Revise que esté encendido.</span>
+        <button id="btn-reintentar-motor" class="btn-secundario" type="button">Reintentar</button>
+    </div>
+
+    <main>
+        <!-- ============ 🖥️ Estado General / Auditoría ============ -->
+        <section id="tab-auditoria" class="panel" role="tabpanel">
+            <button id="btn-auditar" class="btn-primario" type="button">AUDITAR EQUIPO</button>
+            <div id="semaforo" class="semaforo apagado">Esperando conexión...</div>
+            <p id="resumen-auditoria" class="meta"></p>
+            <div id="consola-detalles" class="oculto">
+                <h3>Detalle de la Auditoría</h3>
+                <ul id="lista-reglas" class="reglas"></ul>
+            </div>
+        </section>
+
+        <!-- ============ 🛡️ Disaster Recovery ============ -->
+        <section id="tab-recovery" class="panel" role="tabpanel" hidden>
+            <div class="segmentado" role="group" aria-label="Vista de recuperación">
+                <button class="seg-btn activo" data-vista="running" type="button" aria-pressed="true">Running vs Startup</button>
+                <button class="seg-btn" data-vista="historial" type="button" aria-pressed="false">Historial</button>
+                <button class="seg-btn" data-vista="versiones" type="button" aria-pressed="false">Versiones</button>
+            </div>
+            <div id="rec-running"></div>
+            <div id="rec-historial" hidden></div>
+            <div id="rec-versiones" hidden></div>
+        </section>
+
+        <!-- ============ 🔒 Seguridad L2 ============ -->
+        <section id="tab-seguridad" class="panel" role="tabpanel" hidden>
+            <div id="seg-contenido"></div>
+        </section>
+
+        <!-- ============ 🌐 OSPF ============ -->
+        <section id="tab-ospf" class="panel" role="tabpanel" hidden>
+            <div id="ospf-contenido"></div>
+        </section>
+
+        <!-- ============ 🚀 Estrés MTU ============ -->
+        <section id="tab-mtu" class="panel" role="tabpanel" hidden>
+            <p class="nota">Envía pings con el bit DF activado desde el equipo hacia un destino para comprobar el MTU real del camino. Solo hacia redes privadas.</p>
+            <div class="formulario">
+                <div class="fila-2">
+                    <label>IP del equipo <input id="mtu-ip" type="text" inputmode="decimal" placeholder="192.168.1.20" autocomplete="off" spellcheck="false"></label>
+                    <label>Driver
+                        <select id="mtu-driver">
+                            <option value="ios">ios</option>
+                            <option value="vyos">vyos</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="fila-2">
+                    <label>Usuario <input id="mtu-usuario" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+                    <label>Contraseña <input id="mtu-password" type="password" autocomplete="off"></label>
+                </div>
+                <label>IP destino <input id="mtu-destino" type="text" inputmode="decimal" placeholder="10.0.0.2" autocomplete="off" spellcheck="false"></label>
+                <div class="fila-2">
+                    <label>MTU esperado (bytes) <input id="mtu-esperado" type="number" inputmode="numeric" min="576" max="9000" value="1500"></label>
+                    <label>Repeticiones
+                        <select id="mtu-cantidad">
+                            <option value="3" selected>3</option>
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </label>
+                </div>
+                <div class="chips" aria-label="MTU frecuentes">
+                    <button type="button" class="chip" data-mtu="1500">1500</button>
+                    <button type="button" class="chip" data-mtu="1492">1492 PPPoE</button>
+                    <button type="button" class="chip" data-mtu="1400">1400 túnel</button>
+                    <button type="button" class="chip" data-mtu="9000">9000 jumbo</button>
+                </div>
+            </div>
+            <button id="btn-mtu" class="btn-primario" type="button">EJECUTAR PRUEBA MTU</button>
+            <div id="semaforo-mtu" class="semaforo apagado">Sin resultados todavía</div>
+            <div id="error-mtu"></div>
+            <div id="kpi-mtu" class="kpis"></div>
+            <p id="mensaje-mtu" class="meta"></p>
+            <div class="tabla-scroll"><table id="tabla-mtu"></table></div>
+        </section>
+
+        <!-- ============ 📈 Telemetría ============ -->
+        <section id="tab-telemetria" class="panel" role="tabpanel" hidden>
+            <div id="telemetria-estado"></div>
+            <div id="telemetria-contenido"></div>
+        </section>
+    </main>
+
+    <nav class="tabbar" role="tablist" aria-label="Secciones">
+        <button class="tab-btn" role="tab" data-tab="auditoria" aria-selected="true" type="button"><span class="tab-icono">🖥️</span>Estado</button>
+        <button class="tab-btn" role="tab" data-tab="recovery" aria-selected="false" type="button"><span class="tab-icono">🛡️</span>Recovery</button>
+        <button class="tab-btn" role="tab" data-tab="seguridad" aria-selected="false" type="button"><span class="tab-icono">🔒</span>Seguridad</button>
+        <button class="tab-btn" role="tab" data-tab="ospf" aria-selected="false" type="button"><span class="tab-icono">🌐</span>OSPF</button>
+        <button class="tab-btn" role="tab" data-tab="mtu" aria-selected="false" type="button"><span class="tab-icono">🚀</span>MTU</button>
+        <button class="tab-btn" role="tab" data-tab="telemetria" aria-selected="false" type="button"><span class="tab-icono">📈</span>Telemetría</button>
+    </nav>
+
+    <!-- Modal de credenciales: IP, usuario y contraseña SOLO en memoria -->
+    <div id="modal-cred" class="modal-fondo oculto">
+        <form id="form-cred" class="modal" role="dialog" aria-modal="true" aria-labelledby="mc-titulo" autocomplete="off">
+            <h2 id="mc-titulo">🔑 Equipo y credenciales</h2>
+            <label>Equipos frecuentes <select id="mc-equipo"></select></label>
+            <label>IP del equipo <input id="mc-ip" type="text" inputmode="decimal" placeholder="192.168.1.20" autocomplete="off" spellcheck="false"></label>
+            <label>Usuario <input id="mc-usuario" type="text" autocomplete="off" autocapitalize="none" spellcheck="false"></label>
+            <label>Contraseña
+                <span class="campo-clave">
+                    <input id="mc-password" type="password" autocomplete="off">
+                    <button id="mc-ver" class="btn-icono" type="button" aria-label="Mostrar u ocultar contraseña">👁</button>
+                </span>
+            </label>
+            <label>Plataforma
+                <select id="mc-driver">
+                    <option value="ios">Cisco IOS</option>
+                    <option value="vyos">VyOS</option>
+                </select>
+            </label>
+            <p class="nota">Se guardan solo en la memoria de esta sesión: se pierden al recargar la pantalla y nunca se escriben en disco.</p>
+            <p id="mc-error" class="error-form" role="alert"></p>
+            <div class="modal-acciones">
+                <button id="mc-guardar" class="btn-primario" type="submit">Guardar</button>
+                <button id="mc-cancelar" class="btn-secundario" type="button">Cancelar</button>
+                <button id="mc-borrar" class="btn-secundario" type="button">Borrar credenciales</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="ui.js"></script>
+    <script src="api.js"></script>
+    <script src="estado.js"></script>
+    <script src="tabs.js"></script>
+    <script src="salud.js"></script>
+    <script src="modalCredenciales.js"></script>
+    <script src="panelAuditoria.js"></script>
+    <script src="diffViewer.js"></script>
+    <script src="panelRecovery.js"></script>
+    <script src="scoreSeguridad.js"></script>
+    <script src="panelOspf.js"></script>
+    <script src="panelMtu.js"></script>
+    <script src="panelTelemetria.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

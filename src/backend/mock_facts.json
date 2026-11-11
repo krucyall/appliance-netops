@@ -1,0 +1,10 @@
+{
+  "hostname": "R1-LAB",
+  "vendor": "Cisco",
+  "os_version": "12.4(24)T",
+  "serial_number": "SIM123456",
+  "model": "IOSv",
+  "fqdn": "R1-LAB.lab.local",
+  "uptime": 300,
+  "interface_list": ["GigabitEthernet0/0", "GigabitEthernet0/1", "GigabitEthernet0/2"]
+}

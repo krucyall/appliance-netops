@@ -1,0 +1,12 @@
+{
+  "hostname": "SW1-LAB",
+  "interfaces": {
+    "GigabitEthernet0/0": {"is_enabled": true,  "is_up": true,  "last_flapped": 86400.0, "mtu": 1500, "description": "Uplink a R1"},
+    "GigabitEthernet0/1": {"is_enabled": true,  "is_up": false, "last_flapped": 7200.0,  "mtu": 1500, "description": "PC-Lab (cable suelto)"},
+    "GigabitEthernet0/2": {"is_enabled": false, "is_up": false, "last_flapped": -1.0,    "mtu": 1500, "description": "Sin uso (shutdown)"},
+    "GigabitEthernet0/3": {"is_enabled": true,  "is_up": true,  "last_flapped": 45.0,    "mtu": 1500, "description": "Enlace inestable"},
+    "GigabitEthernet1/0": {"is_enabled": false, "is_up": true,  "last_flapped": 300.0,   "mtu": 1500, "description": "Estado inconsistente"},
+    "Loopback0":          {"is_enabled": true,  "is_up": true,  "last_flapped": -1.0,    "mtu": 1514, "description": "Router-ID"},
+    "Vlan1":              {"is_enabled": true,  "is_up": false, "last_flapped": -1.0,    "mtu": 1500, "description": "SVI virtual (se ignora)"}
+  }
+}
