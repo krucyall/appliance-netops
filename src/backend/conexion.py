@@ -17,6 +17,7 @@ sola conexion, en vez de tres handshakes SSH separados).
 para el caso de uso mas simple (un solo get_facts + interfaces).
 """
 
+<<<<<<< HEAD
 from contextlib import contextmanager
 from typing import Any, Dict, Iterator
 
@@ -30,6 +31,32 @@ from napalm.base.exceptions import (
 from netmiko.exceptions import NetmikoAuthenticationException
 
 from extraccion_config import ErrorExtraccionConfig, obtener_configs
+=======
+import socket
+import time
+from contextlib import contextmanager
+from typing import Any, Dict, Iterator
+
+# NAPALM (y Netmiko, que viene con NAPALM) son opcionales al importar:
+# asi main.py puede arrancar en el bus sin NAPALM instalado y servir los
+# endpoints mock y /api/ping. Solo `conectar()` / `obtener_facts()`
+# lo necesitan, y avisan con ErrorConexion si falta.
+try:
+    from napalm import get_network_driver
+    from napalm.base.base import NetworkDriver
+    from napalm.base.exceptions import (
+        ConnectAuthError,
+        ConnectionException,
+        ConnectTimeoutError,
+        ModuleImportError,
+    )
+    from netmiko.exceptions import NetmikoAuthenticationException
+
+    NAPALM_DISPONIBLE = True
+except ImportError:
+    NetworkDriver = Any  # Solo para los type hints
+    NAPALM_DISPONIBLE = False
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 
 
 class ErrorConexion(Exception):
@@ -114,7 +141,28 @@ def conectar(
     Garantiza el cierre de la sesion al salir del bloque `with`, haya
     o no error. Lanza ErrorConexion ante cualquier falla de apertura.
     """
+<<<<<<< HEAD
     driver_class = get_network_driver(driver_name)
+=======
+    if not NAPALM_DISPONIBLE:
+        raise ErrorConexion(
+            "Error: El appliance no tiene instalada la libreria de conexion (NAPALM).",
+            detalle_tecnico="Instalar con: pip install -r requirements.txt",
+        )
+
+    try:
+        driver_class = get_network_driver(driver_name)
+    except ModuleImportError as error:
+        # Pasa con nombres que no son drivers NAPALM (ej: "cisco" en vez
+        # de "ios") o con drivers de la comunidad no instalados (ej:
+        # "vyos" requiere `pip install napalm-vyos`).
+        raise ErrorConexion(
+            f"Error: El tipo de equipo '{driver_name}' no es compatible o su "
+            "driver no esta instalado en el appliance.",
+            detalle_tecnico=str(error),
+        )
+
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
     dispositivo = driver_class(
         hostname=ip,
         username=usuario,
@@ -155,6 +203,7 @@ def obtener_facts(
             )
 
 
+<<<<<<< HEAD
 def extraer_configuraciones(dispositivo: NetworkDriver) -> Dict[str, Any]:
     """
     Extrae running-config y startup-config SANITIZADAS del equipo, reutilizando la sesion
@@ -171,6 +220,57 @@ def extraer_configuraciones(dispositivo: NetworkDriver) -> Dict[str, Any]:
         return obtener_configs(dispositivo)
     except ErrorExtraccionConfig as error:
         raise ErrorConexion(error.mensaje_usuario, detalle_tecnico=error.detalle_tecnico)
+=======
+def verificar_conectividad_tcp(
+    ip: str,
+    puerto: int = 22,
+    timeout: float = 2.0,
+) -> Dict[str, Any]:
+    """
+    Verifica si un puerto TCP (por defecto SSH, 22) esta abierto y accesible.
+
+    Pensado como prueba rapida de 1-toque antes de abrir la sesion NAPALM
+    completa (que tarda varios segundos en fallar si el equipo no responde).
+    No lanza excepciones: siempre retorna un dict con 'alcanzable' y un
+    'mensaje' listo para mostrar en la pantalla tactil.
+    """
+    inicio = time.perf_counter()
+
+    def _resultado(alcanzable: bool, mensaje: str) -> Dict[str, Any]:
+        return {
+            "alcanzable": alcanzable,
+            "ip": ip,
+            "puerto": puerto,
+            "latencia_ms": round((time.perf_counter() - inicio) * 1000, 2),
+            "mensaje": mensaje,
+        }
+
+    try:
+        # create_connection + `with` garantiza que el socket se cierre
+        # siempre, incluso si la conexion falla.
+        with socket.create_connection((ip, puerto), timeout=timeout):
+            pass
+    except socket.timeout:
+        return _resultado(
+            False,
+            f"Tiempo de espera agotado al conectar con {ip}:{puerto}. "
+            "Verifique el cable, la IP o que el equipo este encendido.",
+        )
+    except ConnectionRefusedError:
+        return _resultado(
+            False,
+            f"El equipo {ip} respondio, pero el puerto {puerto} esta cerrado.",
+        )
+    except OSError as error:
+        # Cubre IP invalida, red inalcanzable, nombre no resuelto, etc.
+        return _resultado(False, f"Error de red al sondear {ip}: {error}")
+
+    resultado = _resultado(True, "")
+    resultado["mensaje"] = (
+        f"Puerto {puerto} abierto y accesible ({resultado['latencia_ms']} ms)."
+    )
+    return resultado
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 
 
 if __name__ == "__main__":

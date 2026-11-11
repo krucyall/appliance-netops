@@ -1,6 +1,10 @@
 # Entornos virtuales
 env/
 venv/
+<<<<<<< HEAD
+=======
+.venv/
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 ENV/
 
 # Archivos compilados de Python
@@ -14,6 +18,7 @@ __pycache__/
 # Archivos de SO
 .DS_Store
 Thumbs.db
+<<<<<<< HEAD
 
 # A.X.I.S. - datos locales (contienen configuraciones de equipos reales)
 src/backend/data/
@@ -21,3 +26,6 @@ src/backend/data/
 *.db-wal
 *.db-shm
 .pytest_cache/
+=======
+desktop.ini
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1

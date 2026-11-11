@@ -15,8 +15,11 @@ import re
 import difflib
 from typing import Any, Dict
 
+<<<<<<< HEAD
 from reglas_puertos import evaluar_puertos_mareados
 
+=======
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 # --- Configuracion de umbrales (constantes de negocio) ---
 # En una fase posterior estos valores deberian venir de un JSON de
 # "buenas practicas" externo (Competencia 1: Auditoria), no hardcodeados
@@ -30,14 +33,28 @@ def _extraer_version_numerica(os_version: str) -> float:
     """
     Extrae la porcion numerica principal de un string de version de IOS.
 
+<<<<<<< HEAD
     Los equipos Cisco suelen reportar cadenas como "15.4(3)M2" o
     "12.4(24)T". Para poder comparar, se toma solo el primer numero
     con su decimal (ej: 15.4).
+=======
+    Los mocks traen cadenas cortas como "15.4(3)M2" o "12.4(24)T", pero
+    NAPALM get_facts() en un equipo real entrega la linea completa, ej:
+    "7200 Software (C7200-ADVENTERPRISEK9-M), Version 15.2(4)S7, RELEASE...".
+    Por eso se busca primero el numero que sigue a "Version" y, si no
+    aparece, el primer "X.Y" del texto. Se toma solo mayor.menor (ej: 15.2).
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 
     Retorna 0.0 si no se pudo interpretar el formato, para que quien
     llama decida como manejar un dato no confiable.
     """
+<<<<<<< HEAD
     match = re.match(r"(\d+)\.(\d+)", os_version.strip())
+=======
+    match = re.search(r"Version\s+(\d+)\.(\d+)", os_version) or re.search(
+        r"(\d+)\.(\d+)", os_version
+    )
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
     if not match:
         return 0.0
     mayor, menor = match.groups()
@@ -135,17 +152,24 @@ def evaluar_dispositivo(datos: Dict[str, Any]) -> Dict[str, Any]:
     Corre todas las validaciones disponibles sobre un dispositivo y arma
     el resultado agregado que consumira el endpoint /api/auditar.
 
+<<<<<<< HEAD
     Checks: firmware, uptime y, cuando 'datos' trae 'interfaces' (get_interfaces() de
     NAPALM), puertos mareados (is_enabled vs is_up).
 
     Semaforo general: 'rojo' si algun check es rojo; si no, 'amarillo' si alguno es
     amarillo (advertencia, p. ej. puertos habilitados sin enlace); si no, 'verde'.
+=======
+    El estado general es 'rojo' si CUALQUIER check individual fallo
+    (logica conservadora: basta una vulnerabilidad para que la mascota
+    se ponga triste).
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
     """
     checks = [
         evaluar_firmware(datos),
         evaluar_uptime(datos),
     ]
 
+<<<<<<< HEAD
     if "interfaces" in datos:
         checks.append(evaluar_puertos_mareados(datos))
 
@@ -155,6 +179,9 @@ def evaluar_dispositivo(datos: Dict[str, Any]) -> Dict[str, Any]:
         estado_general = "amarillo"
     else:
         estado_general = "verde"
+=======
+    estado_general = "rojo" if any(c["estado"] == "rojo" for c in checks) else "verde"
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 
     return {
         "hostname": datos.get("hostname", "desconocido"),
@@ -163,6 +190,20 @@ def evaluar_dispositivo(datos: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+<<<<<<< HEAD
+=======
+if __name__ == "__main__":
+    # Prueba rapida 100% offline, sin FastAPI ni NAPALM: python evaluador.py
+    import json
+
+    datos_ejemplo = {
+        "hostname": "R1-LAB",
+        "os_version": "12.4(24)T",
+        "uptime": 300,
+    }
+    print(json.dumps(evaluar_dispositivo(datos_ejemplo), indent=2, ensure_ascii=False))
+
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
 def evaluar_ospf(datos: Dict[str, Any]) -> Dict[str, Any]:
     """
     Audita las adyacencias OSPF de un dispositivo.
@@ -273,6 +314,12 @@ def calcular_score_seguridad(datos: Dict[str, Any]) -> Dict[str, Any]:
         "hostname": datos.get("hostname", "desconocido"),
         "score": score,
         "estado_color": estado_color,
+<<<<<<< HEAD
+=======
+        # Un 100 sin puertos analizados (ej: un router) no significa
+        # "seguro": el Frontend debe poder distinguir ese caso.
+        "cantidad_interfaces": len(interfaces),
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
         "hallazgos": hallazgos,
     }
 
@@ -324,6 +371,7 @@ def comparar_configs(running: str, startup: str) -> Dict[str, Any]:
             else "La running-config coincide con la startup-config. No hay cambios sin guardar."
         ),
         "diff": resultado_lineas,
+<<<<<<< HEAD
     }
 
 
@@ -337,3 +385,6 @@ if __name__ == "__main__":
         "uptime": 300,
     }
     print(json.dumps(evaluar_dispositivo(datos_ejemplo), indent=2, ensure_ascii=False))
+=======
+    }
+>>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1

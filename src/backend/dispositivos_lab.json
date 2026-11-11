@@ -1,0 +1,32 @@
+[
+  {
+    "id": "r1-core",
+    "nombre": "R1-Core (GNS3)",
+    "ip": "192.168.1.1",
+    "rol": "router",
+    "driver": "ios",
+    "modelo": "Cisco 7200 / IOSv",
+    "ubicacion": "Rack Lab Principal - GNS3",
+    "puerto_ssh": 22
+  },
+  {
+    "id": "sw-acceso-01",
+    "nombre": "SW-Acceso-01 (Vulnerable)",
+    "ip": "192.168.1.10",
+    "rol": "switch-acceso",
+    "driver": "ios",
+    "modelo": "Catalyst 2960-X / IOL",
+    "ubicacion": "Piso 1 - Armario IDF-01",
+    "puerto_ssh": 22
+  },
+  {
+    "id": "r2-vyos-borde",
+    "nombre": "R2-VyOS-Borde",
+    "ip": "192.168.1.254",
+    "rol": "router",
+    "driver": "vyos",
+    "modelo": "VyOS 1.4 Rolling",
+    "ubicacion": "Borde WAN Lab",
+    "puerto_ssh": 22
+  }
+]
