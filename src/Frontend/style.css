@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 /* A.X.I.S. — tema "terminal NetOps" para pantalla tactil: fondo oscuro, alto contraste, objetivos de toque >= 48 px. */
 :root {
     --bg: #0b0f14; --panel: #111820; --panel2: #18222d; --borde: #243040;
@@ -26,6 +25,7 @@ h3 { font-size: 1.05rem; color: var(--acento); font-family: var(--mono); font-we
 .chip-motor { font-size: .85rem; font-family: var(--mono); color: var(--suave); white-space: nowrap; }
 .chip-motor.ok { color: var(--verde); }
 .chip-motor.caido { color: var(--rojo); }
+.chip-motor.mock { color: var(--amarillo); }
 .chip-sesion {
     display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 14px; max-width: 46%;
     background: var(--panel2); border: 1px solid var(--borde); border-radius: 10px; font-family: var(--mono); font-size: .95rem;
@@ -197,122 +197,3 @@ tr.estado-rojo td:first-child { border-left: 4px solid var(--rojo); }
     .tab-btn { min-height: 54px; }
     .gauge { width: 110px; height: 110px; }
 }
-=======
-body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #1e1e1e;
-    color: #ffffff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding-top: 5vh;
-    margin: 0;
-}
-
-.container {
-    width: 90%;
-    max-width: 600px;
-    text-align: center;
-}
-
-h1 { font-size: 2.5rem; margin-bottom: 5px; }
-.subtitle { color: #aaaaaa; margin-bottom: 30px; font-size: 1.2rem; }
-
-.selector-equipo {
-    margin-bottom: 20px;
-    text-align: left;
-}
-
-select {
-    width: 100%;
-    padding: 15px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    background-color: #333;
-    color: white;
-    border: 1px solid #555;
-    margin-top: 10px;
-}
-
-/* Mismo estilo que el select, para que se vea uniforme en la pantalla tactil */
-.selector-equipo input {
-    width: 100%;
-    box-sizing: border-box;
-    padding: 15px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    background-color: #333;
-    color: white;
-    border: 1px solid #555;
-    margin: 10px 0 15px;
-}
-
-#aviso-modo {
-    background-color: #d4a017;
-    color: #1e1e1e;
-    font-weight: bold;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-button {
-    background-color: #0078D7;
-    color: white;
-    border: none;
-    padding: 20px 0;
-    width: 100%;
-    font-size: 1.5rem;
-    font-weight: bold;
-    border-radius: 10px;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    transition: background-color 0.3s;
-}
-
-button:active { background-color: #005a9e; transform: scale(0.98); }
-button:disabled { background-color: #555555; cursor: not-allowed; }
-
-#semaforo {
-    margin-top: 30px;
-    padding: 20px;
-    border-radius: 15px;
-    font-size: 1.5rem;
-    font-weight: bold;
-    transition: all 0.4s ease;
-}
-
-.apagado { background-color: #333; color: #777; border: 2px solid #555; }
-.procesando { background-color: #d4a017; color: #fff; animation: pulse 1.5s infinite; }
-.verde { background-color: #28a745; color: #fff; box-shadow: 0 0 20px #28a745; }
-.rojo { background-color: #dc3545; color: #fff; box-shadow: 0 0 20px #dc3545; }
-
-/* Estilos de la Consola de Detalles */
-.oculto { display: none; }
-#consola-detalles {
-    margin-top: 30px;
-    background-color: #252526;
-    border: 1px solid #444;
-    border-radius: 8px;
-    padding: 15px;
-    text-align: left;
-}
-
-#lista-reglas {
-    list-style-type: none;
-    padding: 0;
-}
-
-#lista-reglas li {
-    padding: 10px;
-    border-bottom: 1px solid #444;
-    font-size: 1.1rem;
-}
-#lista-reglas li:last-child { border-bottom: none; }
-
-@keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
->>>>>>> 8370e2233e48bb6eab451f6923399fc8785509c1
