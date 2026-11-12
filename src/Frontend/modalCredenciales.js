@@ -1,16 +1,40 @@
 /* modalCredenciales.js — modal para ingresar IP, usuario y contrasena EN TIEMPO DE EJECUCION.
-   Los valores se guardan solo en memoria (AXIS.sesion): se pierden al recargar la pagina. */
+   Los valores se guardan solo en memoria (AXIS.sesion): se pierden al recargar la pagina.
+   El selector de equipos se llena con el inventario del laboratorio (GET /api/dispositivos);
+   si el motor no responde se usan los atajos de AXIS.config.EQUIPOS_RAPIDOS. */
 (function () {
     window.AXIS = window.AXIS || {};
     const $ = (id) => document.getElementById(id);
     const { el, limpiar } = AXIS.ui;
+    let equipos = AXIS.config.EQUIPOS_RAPIDOS;   // [{nombre, ip, driver?}]
+
+    const buscar = (ip) => equipos.find((e) => e.ip === ip);
+
+    function pintarEquipos() {
+        const rapidos = $("mc-equipo");
+        const elegido = rapidos.value;
+        limpiar(rapidos);
+        rapidos.append(el("option", { value: "", text: "Otra IP (escribirla abajo)" }),
+            ...equipos.map((e) => el("option", { value: e.ip, text: e.nombre + " (" + e.ip + ")" })));
+        rapidos.value = buscar(elegido) ? elegido : "";
+    }
+
+    async function cargarInventario() {
+        try {
+            const inventario = await AXIS.api("/api/dispositivos");
+            if (Array.isArray(inventario) && inventario.length) {
+                equipos = inventario.map((d) => ({ nombre: d.nombre, ip: d.ip, driver: d.driver }));
+                pintarEquipos();
+            }
+        } catch (_) { /* sin motor: se mantienen los atajos de config.js */ }
+    }
 
     function abrir(motivo) {
         const s = AXIS.sesion.obtener();
         $("mc-ip").value = s.ip; $("mc-usuario").value = s.usuario;
         $("mc-password").value = s.password; $("mc-driver").value = s.driver;
         $("mc-password").type = "password";
-        $("mc-equipo").value = (AXIS.config.EQUIPOS_RAPIDOS.find((e) => e.ip === s.ip) || {}).ip || "";
+        $("mc-equipo").value = (buscar(s.ip) || {}).ip || "";
         $("mc-error").textContent = motivo || "";
         $("modal-cred").classList.remove("oculto");
         $("btn-sesion").setAttribute("aria-expanded", "true");
@@ -37,11 +61,18 @@
 
     function iniciar() {
         const rapidos = $("mc-equipo");
-        rapidos.append(el("option", { value: "", text: "Otra IP (escribirla abajo)" }),
-            ...AXIS.config.EQUIPOS_RAPIDOS.map((e) => el("option", { value: e.ip, text: e.nombre + " (" + e.ip + ")" })));
-        rapidos.addEventListener("change", () => { if (rapidos.value) $("mc-ip").value = rapidos.value; });
+        pintarEquipos();
+        cargarInventario();
+        rapidos.addEventListener("change", () => {
+            const equipo = buscar(rapidos.value);
+            if (!equipo) return;
+            $("mc-ip").value = equipo.ip;
+            if (equipo.driver && $("mc-driver").querySelector('option[value="' + equipo.driver + '"]')) {
+                $("mc-driver").value = equipo.driver;
+            }
+        });
         $("mc-ip").addEventListener("input", () => {
-            rapidos.value = (AXIS.config.EQUIPOS_RAPIDOS.find((e) => e.ip === $("mc-ip").value.trim()) || {}).ip || "";
+            rapidos.value = (buscar($("mc-ip").value.trim()) || {}).ip || "";
         });
         $("btn-sesion").addEventListener("click", () => abrir());
         $("form-cred").addEventListener("submit", guardar);

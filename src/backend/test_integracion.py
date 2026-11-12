@@ -357,12 +357,17 @@ def test_historial_versiones_y_diff_por_api(client):
 
 
 def test_endpoints_existentes_siguen_con_su_contrato(client):
-    assert client.get("/api/estado").json()["estado"] == "ok"
-    r = client.post("/api/auditar", json={"ip": "192.168.1.10", "usuario": "u", "password": "p", "driver_name": "ios"})
+    assert client.get("/api/estado").json() == {"estado": "ok", "mensaje": "Motor M.E.O.W. operativo.", "modo": "mock"}
+    inventario = client.get("/api/dispositivos").json()
+    assert inventario and {"id", "nombre", "ip", "driver"} <= set(inventario[0])
+    cred = {"ip": "192.168.1.10", "usuario": "u", "password": "p", "driver_name": "ios"}
+    r = client.post("/api/auditar", json=cred)
     assert r.status_code == 200 and [c["check"] for c in r.json()["checks"]] == ["firmware", "uptime"]
-    assert client.get("/api/ospf").status_code == 200
-    assert client.get("/api/seguridad").json()["score"] == 60
-    assert client.get("/api/configs/comparar").json()["hay_cambios_sin_guardar"] is True
+    assert r.json()["modo"] == "mock"
+    assert client.post("/api/auditar", json={"ip": "192.168.1.10"}).status_code == 200  # mock: credenciales opcionales
+    assert client.post("/api/ospf", json=cred).status_code == 200
+    assert client.post("/api/seguridad", json=cred).json()["score"] == 60
+    assert client.post("/api/configs/comparar", json=cred).json()["hay_cambios_sin_guardar"] is True
 
 
 def test_mtu_stress_en_modo_mock_pasa_por_la_ruta_real(client, monkeypatch):

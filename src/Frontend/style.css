@@ -25,6 +25,7 @@ h3 { font-size: 1.05rem; color: var(--acento); font-family: var(--mono); font-we
 .chip-motor { font-size: .85rem; font-family: var(--mono); color: var(--suave); white-space: nowrap; }
 .chip-motor.ok { color: var(--verde); }
 .chip-motor.caido { color: var(--rojo); }
+.chip-motor.mock { color: var(--amarillo); }
 .chip-sesion {
     display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 14px; max-width: 46%;
     background: var(--panel2); border: 1px solid var(--borde); border-radius: 10px; font-family: var(--mono); font-size: .95rem;
