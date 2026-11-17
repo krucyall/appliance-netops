@@ -1,0 +1,3 @@
+# Dependencias para COMPILAR el ejecutable
+-r requirements.txt
+pyinstaller

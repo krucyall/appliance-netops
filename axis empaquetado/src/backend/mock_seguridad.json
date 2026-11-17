@@ -1,0 +1,8 @@
+{
+  "hostname": "SW1-LAB",
+  "interfaces_analizadas": [
+    { "interfaz": "FastEthernet0/1", "vlan_acceso": 1, "bpdu_guard": false, "portfast": true },
+    { "interfaz": "FastEthernet0/2", "vlan_acceso": 10, "bpdu_guard": true, "portfast": true },
+    { "interfaz": "FastEthernet0/3", "vlan_acceso": 1, "bpdu_guard": true, "portfast": false }
+  ]
+}

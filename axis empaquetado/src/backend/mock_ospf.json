@@ -1,0 +1,19 @@
+{
+  "hostname": "R2-LAB",
+  "vecinos_ospf": [
+    {
+      "vecino_id": "10.0.0.2",
+      "interfaz": "GigabitEthernet0/1",
+      "area": "0",
+      "estado": "FULL",
+      "tiempo_muerto_seg": 38
+    },
+    {
+      "vecino_id": "10.0.1.2",
+      "interfaz": "GigabitEthernet0/2",
+      "area": "0",
+      "estado": "EXSTART",
+      "tiempo_muerto_seg": 4
+    }
+  ]
+}

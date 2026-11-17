@@ -1,0 +1,6 @@
+# Dependencias de ejecucion de A.X.I.S. (backend)
+napalm
+fastapi
+uvicorn
+# Opcional, para auditar equipos VyOS (instalarlo ANTES de compilar para que entre en el .exe):
+# napalm-vyos

@@ -1,0 +1,5 @@
+{
+  "hostname": "R1-LAB",
+  "running_config": "!\nhostname R1-LAB\n!\ninterface GigabitEthernet0/0\n description Enlace_a_ISP\n ip address 192.168.1.1 255.255.255.0\n no shutdown\n!\ninterface GigabitEthernet0/1\n description Enlace_LAN\n ip address 10.0.0.1 255.255.255.0\n no shutdown\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n network 192.168.1.0 0.0.0.255 area 0\n!\naccess-list 10 permit 10.0.0.0 0.0.0.255\n!\nline vty 0 4\n login local\n transport input ssh\n!\nend",
+  "startup_config": "!\nhostname R1-LAB\n!\ninterface GigabitEthernet0/0\n description Enlace_Provisional\n ip address 192.168.1.1 255.255.255.0\n no shutdown\n!\ninterface GigabitEthernet0/1\n description Enlace_LAN\n ip address 10.0.0.1 255.255.255.0\n no shutdown\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n network 192.168.1.0 0.0.0.255 area 0\n!\nline vty 0 4\n login local\n transport input ssh\n!\nend"
+}
